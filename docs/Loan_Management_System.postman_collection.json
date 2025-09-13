@@ -1,0 +1,844 @@
+{
+  "info": {
+    "name": "Loan Management System API",
+    "description": "Complete API collection for the Loan Management System with authentication, applications, chat, payments, and file management",
+    "version": "1.0.0",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{jwt_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "jwt_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "user_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "application_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "chat_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "file_id",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Register User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\",\n  \"email\": \"john.doe@example.com\",\n  \"password\": \"password123\",\n  \"phone\": \"+91-9876543210\",\n  \"role\": \"user\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/register",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "register"]
+            }
+          }
+        },
+        {
+          "name": "Login User (NextAuth)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"john.doe@example.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/signin",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "signin"]
+            }
+          }
+        },
+        {
+          "name": "Forgot Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"john.doe@example.com\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/forgot-password",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "forgot-password"]
+            }
+          }
+        },
+        {
+          "name": "Reset Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"reset_token_here\",\n  \"password\": \"newpassword123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/reset-password",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "reset-password"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Applications",
+      "item": [
+        {
+          "name": "Get Applications",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/applications?status=pending&limit=10&page=1&search=john",
+              "host": ["{{base_url}}"],
+              "path": ["api", "applications"],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "pending"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "search",
+                  "value": "john"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Application",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"personalInfo\": {\n    \"firstName\": \"John\",\n    \"lastName\": \"Doe\",\n    \"email\": \"john.doe@example.com\",\n    \"phone\": \"+91-9876543210\",\n    \"dateOfBirth\": \"1995-01-01\"\n  },\n  \"addressInfo\": {\n    \"address\": \"123 Main Street\",\n    \"city\": \"Mumbai\",\n    \"state\": \"Maharashtra\",\n    \"pincode\": \"400001\"\n  },\n  \"educationInfo\": {\n    \"instituteName\": \"IIT Mumbai\",\n    \"course\": \"Computer Science\",\n    \"duration\": \"4 years\",\n    \"feeStructure\": 500000,\n    \"admissionDate\": \"2023-07-01\"\n  },\n  \"loanInfo\": {\n    \"amount\": 400000,\n    \"purpose\": \"Education loan for engineering\"\n  },\n  \"financialInfo\": {\n    \"annualIncome\": 800000,\n    \"employmentType\": \"Salaried\",\n    \"employerName\": \"Tech Corp\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/applications",
+              "host": ["{{base_url}}"],
+              "path": ["api", "applications"]
+            }
+          }
+        },
+        {
+          "name": "Get Application by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/applications/{{application_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "applications", "{{application_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Assign DSAs to Application",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"dsaIds\": [\"dsa_id_1\", \"dsa_id_2\", \"dsa_id_3\"]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/applications/{{application_id}}/assign-dsas",
+              "host": ["{{base_url}}"],
+              "path": ["api", "applications", "{{application_id}}", "assign-dsas"]
+            }
+          }
+        },
+        {
+          "name": "Submit DSA Review",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"decision\": \"approved\",\n  \"comments\": \"Application looks good. All documents are in order.\",\n  \"recommendedAmount\": 350000\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/applications/{{application_id}}/reviews",
+              "host": ["{{base_url}}"],
+              "path": ["api", "applications", "{{application_id}}", "reviews"]
+            }
+          }
+        },
+        {
+          "name": "Select DSA",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"dsaId\": \"selected_dsa_id\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/applications/{{application_id}}/select-dsa",
+              "host": ["{{base_url}}"],
+              "path": ["api", "applications", "{{application_id}}", "select-dsa"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "File Management",
+      "item": [
+        {
+          "name": "Upload File",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                },
+                {
+                  "key": "documentType",
+                  "value": "aadhar_card",
+                  "type": "text"
+                },
+                {
+                  "key": "applicationId",
+                  "value": "{{application_id}}",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/files/upload",
+              "host": ["{{base_url}}"],
+              "path": ["api", "files", "upload"]
+            }
+          }
+        },
+        {
+          "name": "Get File Details",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/files/{{file_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "files", "{{file_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete File",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/files/{{file_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "files", "{{file_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Get Application Documents",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/applications/{{application_id}}/documents",
+              "host": ["{{base_url}}"],
+              "path": ["api", "applications", "{{application_id}}", "documents"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Chat System",
+      "item": [
+        {
+          "name": "Get User Chats",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/chat",
+              "host": ["{{base_url}}"],
+              "path": ["api", "chat"]
+            }
+          }
+        },
+        {
+          "name": "Create New Chat",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"participantId\": \"dsa_user_id\",\n  \"applicationId\": \"{{application_id}}\",\n  \"message\": \"Hello, I have some questions about my loan application.\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/chat",
+              "host": ["{{base_url}}"],
+              "path": ["api", "chat"]
+            }
+          }
+        },
+        {
+          "name": "Get Chat Messages",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/chat/{{chat_id}}/messages?limit=50&page=1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "chat", "{{chat_id}}", "messages"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "50"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Send Message",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"Thank you for your response. I will review the documents.\",\n  \"fileUrl\": \"https://res.cloudinary.com/example/document.pdf\",\n  \"fileName\": \"additional_document.pdf\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/chat/{{chat_id}}/messages",
+              "host": ["{{base_url}}"],
+              "path": ["api", "chat", "{{chat_id}}", "messages"]
+            }
+          }
+        },
+        {
+          "name": "Mark Messages as Read",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/chat/{{chat_id}}/read",
+              "host": ["{{base_url}}"],
+              "path": ["api", "chat", "{{chat_id}}", "read"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Payment System",
+      "item": [
+        {
+          "name": "Initiate Payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"applicationId\": \"{{application_id}}\",\n  \"amount\": 99,\n  \"currency\": \"INR\",\n  \"paymentMethod\": \"card\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/payments/initiate",
+              "host": ["{{base_url}}"],
+              "path": ["api", "payments", "initiate"]
+            }
+          }
+        },
+        {
+          "name": "Verify Payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"paymentId\": \"payment_id_from_gateway\",\n  \"applicationId\": \"{{application_id}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/payments/verify",
+              "host": ["{{base_url}}"],
+              "path": ["api", "payments", "verify"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "User Management",
+      "item": [
+        {
+          "name": "Get User Profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/users/profile",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "profile"]
+            }
+          }
+        },
+        {
+          "name": "Update User Profile",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"personalInfo\": {\n    \"firstName\": \"John\",\n    \"lastName\": \"Doe\",\n    \"phone\": \"+91-9876543210\",\n    \"dateOfBirth\": \"1995-01-01\",\n    \"address\": \"123 Updated Street\",\n    \"aadharNumber\": \"1234-5678-9012\",\n    \"panNumber\": \"ABCDE1234F\"\n  },\n  \"educationInfo\": {\n    \"currentInstitution\": \"IIT Mumbai\",\n    \"course\": \"Computer Science\",\n    \"duration\": \"4 years\",\n    \"feeStructure\": 500000,\n    \"admissionDate\": \"2023-07-01\"\n  },\n  \"financialInfo\": {\n    \"annualIncome\": 900000,\n    \"employmentType\": \"Salaried\",\n    \"employerName\": \"Tech Corp India\",\n    \"workExperience\": \"2 years\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/users/profile",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "profile"]
+            }
+          }
+        },
+        {
+          "name": "Get Specific User Profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/users/{{user_id}}/profile",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "{{user_id}}", "profile"]
+            }
+          }
+        },
+        {
+          "name": "Update Specific User Profile",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"personalInfo\": {\n    \"firstName\": \"Jane\",\n    \"lastName\": \"Smith\",\n    \"phone\": \"+91-9876543211\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/users/{{user_id}}/profile",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "{{user_id}}", "profile"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin Endpoints",
+      "item": [
+        {
+          "name": "Get All Users",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/admin/users?role=user&status=active&limit=20&page=1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "users"],
+              "query": [
+                {
+                  "key": "role",
+                  "value": "user"
+                },
+                {
+                  "key": "status",
+                  "value": "active"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update User Status",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"suspended\",\n  \"reason\": \"Violation of terms and conditions\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin/users/{{user_id}}/status",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "users", "{{user_id}}", "status"]
+            }
+          }
+        },
+        {
+          "name": "Verify User",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"verified\": true,\n  \"verificationNotes\": \"All documents verified successfully\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin/users/{{user_id}}/verify",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "users", "{{user_id}}", "verify"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Statistics & Notifications",
+      "item": [
+        {
+          "name": "Get System Statistics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/statistics?role=admin",
+              "host": ["{{base_url}}"],
+              "path": ["api", "statistics"],
+              "query": [
+                {
+                  "key": "role",
+                  "value": "admin"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get User Notifications",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/notifications?limit=20&unread=true",
+              "host": ["{{base_url}}"],
+              "path": ["api", "notifications"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "unread",
+                  "value": "true"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Mark Notification as Read",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"notificationId\": \"notification_id_here\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/notifications",
+              "host": ["{{base_url}}"],
+              "path": ["api", "notifications"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Support Tickets",
+      "item": [
+        {
+          "name": "Get Support Tickets",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/support?status=open&category=technical&priority=high&limit=20&page=1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "support"],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "open",
+                  "description": "Filter by status: open, in_progress, resolved, closed"
+                },
+                {
+                  "key": "category",
+                  "value": "technical",
+                  "description": "Filter by category: technical, general, billing, process, other"
+                },
+                {
+                  "key": "priority",
+                  "value": "high",
+                  "description": "Filter by priority: low, medium, high"
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "Number of tickets per page"
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Support Ticket",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subject\": \"Unable to upload documents\",\n  \"description\": \"I am facing issues while uploading my Aadhar card. The upload keeps failing.\",\n  \"category\": \"technical\",\n  \"priority\": \"medium\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/support",
+              "host": ["{{base_url}}"],
+              "path": ["api", "support"]
+            }
+          }
+        },
+        {
+          "name": "Get Support Ticket by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/support/{{ticket_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "support", "{{ticket_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Add Message to Ticket",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"I have tried clearing my browser cache but the issue persists.\",\n  \"attachments\": [\n    {\n      \"fileName\": \"screenshot.png\",\n      \"fileUrl\": \"https://res.cloudinary.com/example/screenshot.png\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/support/{{ticket_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "support", "{{ticket_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Support Ticket",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/support/{{ticket_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "support", "{{ticket_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Email System",
+      "item": [
+        {
+          "name": "Send Email",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"to\": \"user@example.com\",\n  \"template\": \"welcome\",\n  \"data\": {\n    \"firstName\": \"John\",\n    \"lastName\": \"Doe\",\n    \"loginUrl\": \"https://yourdomain.com/login\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/email/send",
+              "host": ["{{base_url}}"],
+              "path": ["api", "email", "send"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
