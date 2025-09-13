@@ -131,10 +131,10 @@ const PaymentSchema = new mongoose.Schema<IPayment>({
 });
 
 // Compound indexes for efficient queries
+// Individual fields already have indexes, only add compound indexes that provide additional value
 PaymentSchema.index({ userId: 1, status: 1 });
 PaymentSchema.index({ applicationId: 1, status: 1 });
 PaymentSchema.index({ createdAt: -1 });
-PaymentSchema.index({ status: 1, createdAt: -1 });
 
 // Instance methods
 PaymentSchema.methods.isExpired = function(): boolean {

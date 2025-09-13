@@ -110,10 +110,10 @@ const FileUploadSchema = new Schema<IFileUpload>({
 });
 
 // Indexes for better query performance
+// Individual fields already have indexes, only add compound indexes that provide additional value
 FileUploadSchema.index({ uploadedBy: 1, documentType: 1 });
 FileUploadSchema.index({ applicationId: 1, documentType: 1 });
-FileUploadSchema.index({ uploadedAt: -1 });
-FileUploadSchema.index({ isDeleted: 1, uploadedAt: -1 });
+// uploadedAt and isDeleted already have individual indexes
 
 // Virtual for file size in human readable format
 FileUploadSchema.virtual('fileSizeFormatted').get(function() {

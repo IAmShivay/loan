@@ -144,11 +144,10 @@ const ChatSchema = new Schema<IChat>({
 });
 
 // Indexes for better query performance
+// Individual fields already have indexes, only add compound indexes that provide additional value
 ChatSchema.index({ applicationId: 1, isActive: 1 });
 ChatSchema.index({ 'participants.userId': 1, isActive: 1 });
-ChatSchema.index({ updatedAt: -1 });
-ChatSchema.index({ 'messages.timestamp': -1 });
-ChatSchema.index({ 'messages.read': 1, 'messages.senderId': 1 });
+// updatedAt, messages.timestamp, messages.read already have individual indexes
 
 // Virtual for unread message count
 ChatSchema.virtual('unreadCount').get(function() {

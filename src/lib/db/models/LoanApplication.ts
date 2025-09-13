@@ -233,7 +233,7 @@ LoanApplicationSchema.index({ status: 1 });
 // applicationNumber already has unique index, no need for explicit index
 LoanApplicationSchema.index({ reviewDeadline: 1 });
 LoanApplicationSchema.index({ paymentStatus: 1 });
-LoanApplicationSchema.index({ paymentId: 1 });
+// paymentId already has sparse index, no need for explicit index
 LoanApplicationSchema.index({ createdAt: -1 });
 
 // Pre-save middleware to generate application number

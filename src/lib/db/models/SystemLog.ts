@@ -48,7 +48,7 @@ const SystemLogSchema = new Schema<ISystemLog>({
 // Indexes for better query performance
 SystemLogSchema.index({ level: 1, timestamp: -1 });
 SystemLogSchema.index({ userId: 1, timestamp: -1 });
-SystemLogSchema.index({ timestamp: -1 });
+// timestamp already covered by compound indexes above
 
 // TTL index to automatically delete logs older than 90 days
 SystemLogSchema.index({ timestamp: 1 }, { expireAfterSeconds: 7776000 }); // 90 days

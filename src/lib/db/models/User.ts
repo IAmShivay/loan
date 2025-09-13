@@ -54,6 +54,7 @@ const UserSchema = new Schema<IUser>({
   email: {
     type: String,
     required: [true, 'Email is required'],
+    unique: true,
     lowercase: true,
     trim: true,
     match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, 'Please enter a valid email'],
@@ -185,8 +186,8 @@ const UserSchema = new Schema<IUser>({
 });
 
 // Indexes for better query performance
-UserSchema.index({ email: 1 });
-UserSchema.index({ dsaId: 1 });
+// email already has unique index, no need for explicit index
+// dsaId already has sparse index, no need for explicit index
 UserSchema.index({ role: 1 });
 UserSchema.index({ bankName: 1 });
 UserSchema.index({ isActive: 1, isVerified: 1 });
