@@ -56,6 +56,12 @@ const navigationItems: NavItem[] = [
     roles: ['admin'],
   },
   {
+    name: 'DSA Assignments',
+    href: '/admin/dsa-assignments',
+    icon: Users,
+    roles: ['admin'],
+  },
+  {
     name: 'Loan Applications',
     href: '/admin/applications',
     icon: FileText,

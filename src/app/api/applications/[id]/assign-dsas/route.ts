@@ -7,7 +7,8 @@ import { z } from 'zod';
 
 const assignDSAsSchema = z.object({
   dsaIds: z.array(z.string()).min(1).max(5),
-  finalApprovalThreshold: z.number().min(1).max(5).default(2)
+  finalApprovalThreshold: z.number().min(1).max(5).default(2),
+  reviewDeadlineHours: z.number().min(24).max(168).default(72) // 24 hours to 7 days, default 3 days
 });
 
 // POST /api/applications/[id]/assign-dsas - Assign multiple DSAs to application (Admin only)
@@ -23,7 +24,7 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { dsaIds, finalApprovalThreshold } = assignDSAsSchema.parse(body);
+    const { dsaIds, finalApprovalThreshold, reviewDeadlineHours } = assignDSAsSchema.parse(body);
 
     await connectDB();
 
@@ -50,6 +51,11 @@ export async function POST(
     application.finalApprovalThreshold = finalApprovalThreshold;
     application.status = 'under_review';
     application.assignedAt = new Date();
+
+    // Set review deadline
+    const reviewDeadline = new Date();
+    reviewDeadline.setHours(reviewDeadline.getHours() + reviewDeadlineHours);
+    application.reviewDeadline = reviewDeadline;
 
     // Initialize DSA reviews
     application.dsaReviews = dsaIds.map(dsaId => ({

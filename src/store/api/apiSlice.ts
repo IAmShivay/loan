@@ -265,7 +265,36 @@ export const apiSlice = createApi({
             ]
           : [{ type: 'Applications', id: 'LIST' }],
     }),
-    
+
+    // DSA next application (one-by-one workflow)
+    getDSANextApplication: builder.query<{
+      application: Application | null;
+      message: string;
+      timeRemainingHours?: number;
+      isUrgent?: boolean;
+      hasCompletedAll?: boolean;
+      pendingApplications?: number;
+    }, void>({
+      query: () => 'dsa/next-application',
+      providesTags: ['Application'],
+    }),
+
+    // Get next DSA application after completing current one
+    getNextDSAApplication: builder.mutation<{
+      application: Application | null;
+      message: string;
+      timeRemainingHours?: number;
+      isUrgent?: boolean;
+      hasCompletedAll?: boolean;
+    }, { applicationId?: string; skipToNext?: boolean }>({
+      query: (body) => ({
+        url: 'dsa/next-application',
+        method: 'POST',
+        body,
+      }),
+      invalidatesTags: ['Application'],
+    }),
+
     getApplicationById: builder.query<{ application: Application }, string>({
       query: (id) => `applications/${id}`,
       providesTags: (result, error, id) => [{ type: 'Application', id }],
@@ -932,6 +961,8 @@ export const apiSlice = createApi({
 export const {
   useGetStatisticsQuery,
   useGetApplicationsQuery,
+  useGetDSANextApplicationQuery,
+  useGetNextDSAApplicationMutation,
   useGetApplicationByIdQuery,
   useCreateApplicationMutation,
   useCreateApplicationWithFilesMutation,
