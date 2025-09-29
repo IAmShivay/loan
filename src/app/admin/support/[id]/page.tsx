@@ -51,7 +51,7 @@ export default function AdminSupportDetailPage({ params }: AdminSupportDetailPag
 
   // Auto-open reply if action=reply in URL
   useEffect(() => {
-    if (searchParams.get('action') === 'reply') {
+    if (searchParams?.get('action') === 'reply') {
       setIsReplying(true);
     }
   }, [searchParams]);

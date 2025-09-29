@@ -44,7 +44,7 @@ export default function ApplicationDetailPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const params = useParams();
-  const applicationId = params.id as string;
+  const applicationId = params?.id as string;
 
   // Fetch application details using RTK Query
   const {

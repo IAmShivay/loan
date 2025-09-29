@@ -36,11 +36,11 @@ function ChatPageContent() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const applicationId = searchParams.get('applicationId');
+  const applicationId = searchParams?.get('applicationId');
 
   // All hooks must be called before any conditional returns
   const [selectedChat, setSelectedChat] = useState<string | null>(null);
-  const [selectedApplication, setSelectedApplication] = useState<string | null>(applicationId);
+  const [selectedApplication, setSelectedApplication] = useState<string | null>(applicationId || null);
 
   // Fetch user's chats - use conditional query based on session
   const {
@@ -253,11 +253,11 @@ function ChatPageContent() {
                               if (typeof chat.applicationId === 'string') {
                                 return chat.applicationId.slice(-6);
                               }
-                              if (chat.applicationId && typeof chat.applicationId === 'object' && chat.applicationId._id) {
-                                return chat.applicationId._id.slice(-6);
+                              if (chat.applicationId && typeof chat.applicationId === 'object' && (chat.applicationId as any)._id) {
+                                return (chat.applicationId as any)._id.slice(-6);
                               }
-                              if (chat.applicationId && chat.applicationId.toString && chat.applicationId.toString() !== '[object Object]') {
-                                return chat.applicationId.toString().slice(-6);
+                              if (chat.applicationId && (chat.applicationId as any).toString && (chat.applicationId as any).toString() !== '[object Object]') {
+                                return (chat.applicationId as any).toString().slice(-6);
                               }
                               return 'N/A';
                             })()}

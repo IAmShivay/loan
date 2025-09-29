@@ -420,11 +420,11 @@ export default function ChatWindow({
                     if (typeof applicationId === 'string') {
                       return applicationId.slice(-6);
                     }
-                    if (applicationId && typeof applicationId === 'object' && applicationId._id) {
-                      return applicationId._id.slice(-6);
+                    if (applicationId && typeof applicationId === 'object' && (applicationId as any)._id) {
+                      return (applicationId as any)._id.slice(-6);
                     }
-                    if (applicationId && applicationId.toString && applicationId.toString() !== '[object Object]') {
-                      return applicationId.toString().slice(-6);
+                    if (applicationId && (applicationId as any).toString && (applicationId as any).toString() !== '[object Object]') {
+                      return (applicationId as any).toString().slice(-6);
                     }
                     return 'N/A';
                   })()}

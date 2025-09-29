@@ -188,7 +188,7 @@ export default function Sidebar({ isOpen, onClose, userRole }: SidebarProps) {
       // For nested routes, check if current path starts with item href + '/'
       // but exclude root paths to prevent conflicts
       if (item.href !== '/' && item.href !== '/admin' && item.href !== '/dsa' && item.href !== '/user') {
-        return pathname.startsWith(item.href + '/');
+        return pathname?.startsWith(item.href + '/') || false;
       }
 
       // For root dashboard paths, only match exactly

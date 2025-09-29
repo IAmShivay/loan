@@ -201,11 +201,11 @@ export async function GET(
     return NextResponse.json({
       success: true,
       application: {
-        _id: application._id,
-        status: application.status,
+        _id: (application as any)._id,
+        status: (application as any).status,
         reviews: (application as any).reviews || [],
-        currentStatus: application.status,
-        lastUpdated: application.updatedAt
+        currentStatus: (application as any).status,
+        lastUpdated: (application as any).updatedAt
       }
     });
 

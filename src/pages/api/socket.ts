@@ -9,7 +9,7 @@ interface SocketServer extends NetServer {
 interface SocketApiResponse extends NextApiResponse {
   socket: {
     server: SocketServer;
-  };
+  } & NextApiResponse['socket'];
 }
 
 export default function handler(req: NextApiRequest, res: SocketApiResponse) {
