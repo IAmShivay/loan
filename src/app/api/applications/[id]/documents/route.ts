@@ -29,7 +29,7 @@ export async function GET(
     const hasAccess =
       session.user.role === 'admin' ||
       (session.user.role === 'user' && (application as any).userId.toString() === session.user.id) ||
-      (session.user.role === 'dsa' && (application as any).assignedDSAs?.some((dsa: any) => dsa.toString() === session.user.id));
+      (session.user.role === 'dsa'); // DSAs can access all applications since assignment system was removed
 
     if (!hasAccess) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });

@@ -149,11 +149,19 @@ export interface User {
   isVerified: boolean;
   profilePicture?: string;
   rating?: number;
+  lastLogin?: string;
+
+  // DSA-specific fields for deadline management
+  deadlineCompliance?: number; // Percentage of deadlines met
+  missedDeadlines?: number; // Number of missed deadlines today
+
   statistics?: {
     totalApplications?: number;
     approvedApplications?: number;
+    rejectedApplications?: number;
     successRate?: number;
     totalLoanAmount?: number;
+    averageProcessingTime?: number;
   };
   createdAt: string;
 }
@@ -292,7 +300,12 @@ export const apiSlice = createApi({
         method: 'POST',
         body,
       }),
-      invalidatesTags: ['Application'],
+      invalidatesTags: (result, error, { applicationId }) => [
+        ...(applicationId ? [{ type: 'Application' as const, id: applicationId }] : []),
+        { type: 'Applications', id: 'LIST' },
+        'Statistics',
+        'Analytics'
+      ],
     }),
 
     getApplicationById: builder.query<{ application: Application }, string>({
@@ -348,8 +361,10 @@ export const apiSlice = createApi({
         body: { status, comments },
       }),
       invalidatesTags: (result, error, { applicationId }) => [
-        { type: 'Applications', id: applicationId },
-        'Applications',
+        { type: 'Application', id: applicationId },
+        { type: 'Applications', id: 'LIST' },
+        'Statistics',
+        'Analytics'
       ],
     }),
     
@@ -490,9 +505,9 @@ export const apiSlice = createApi({
     }),
     
     // Users endpoints (Admin only)
-    getUsers: builder.query<{ users: User[]; total: number }, { 
-      role?: string; 
-      limit?: number; 
+    getUsers: builder.query<{ data: { users: User[]; pagination: { total: number; page: number; limit: number; totalPages: number; hasNext: boolean; hasPrev: boolean; } } }, {
+      role?: string;
+      limit?: number;
       page?: number;
     }>({
       query: (params) => {
@@ -504,12 +519,18 @@ export const apiSlice = createApi({
         });
         return `admin/users?${searchParams.toString()}`;
       },
-      providesTags: ['Users'],
+      providesTags: (result) =>
+        result
+          ? [
+              ...result.data.users.map(({ _id }) => ({ type: 'User' as const, id: _id })),
+              { type: 'Users', id: 'LIST' },
+            ]
+          : [{ type: 'Users', id: 'LIST' }],
     }),
 
     getUserById: builder.query<{ user: User }, string>({
       query: (id) => `admin/users/${id}`,
-      providesTags: (result, error, id) => [{ type: 'Users', id }],
+      providesTags: (result, error, id) => [{ type: 'User', id }],
     }),
 
     updateUserStatus: builder.mutation<void, { id: string; status: string }>({
@@ -518,7 +539,12 @@ export const apiSlice = createApi({
         method: 'PATCH',
         body: { status },
       }),
-      invalidatesTags: ['Users', 'Statistics'],
+      invalidatesTags: (result, error, { id }) => [
+        { type: 'User', id },
+        { type: 'Users', id: 'LIST' },
+        'Statistics',
+        'Analytics'
+      ],
     }),
 
     verifyPayment: builder.mutation<{ success: boolean }, {
@@ -531,7 +557,12 @@ export const apiSlice = createApi({
         method: 'POST',
         body: verification,
       }),
-      invalidatesTags: ['Applications', 'Statistics'],
+      invalidatesTags: [
+        { type: 'Applications', id: 'LIST' },
+        { type: 'Payments', id: 'LIST' },
+        'Statistics',
+        'Analytics'
+      ],
     }),
 
     // File upload endpoints
@@ -570,7 +601,13 @@ export const apiSlice = createApi({
         });
         return `files?${searchParams.toString()}`;
       },
-      providesTags: ['Files'],
+      providesTags: (result) =>
+        result
+          ? [
+              ...result.files.map(({ _id }) => ({ type: 'File' as const, id: _id })),
+              { type: 'Files', id: 'LIST' },
+            ]
+          : [{ type: 'Files', id: 'LIST' }],
     }),
 
     deleteFile: builder.mutation<{ success: boolean }, string>({
@@ -578,7 +615,11 @@ export const apiSlice = createApi({
         url: `files/${fileId}`,
         method: 'DELETE',
       }),
-      invalidatesTags: ['Files'],
+      invalidatesTags: (result, error, fileId) => [
+        { type: 'File', id: fileId },
+        { type: 'Files', id: 'LIST' },
+        'Applications'
+      ],
     }),
 
     // Chat endpoints
@@ -713,7 +754,10 @@ export const apiSlice = createApi({
         method: 'POST',
         body: ticketData,
       }),
-      invalidatesTags: ['SupportTicket'],
+      invalidatesTags: [
+        { type: 'SupportTickets', id: 'LIST' },
+        'Statistics'
+      ],
     }),
 
     updateSupportTicket: builder.mutation<SupportTicket, {
@@ -954,6 +998,74 @@ export const apiSlice = createApi({
         body: { action: 'backup' },
       }),
     }),
+
+    // DSA reactivation endpoints
+    getDSAReactivationRequests: builder.query<{
+      success: boolean;
+      requests: Array<{
+        _id: string;
+        firstName: string;
+        lastName: string;
+        email: string;
+        dsaId: string;
+        bankName: string;
+        reactivationRequest: {
+          reason: string;
+          clarification: string;
+          requestedAt: string;
+          status: 'pending' | 'approved' | 'rejected';
+        };
+      }>;
+    }, void>({
+      query: () => 'admin/dsa-reactivation',
+      providesTags: ['Users'],
+    }),
+
+    processDSAReactivation: builder.mutation<{
+      success: boolean;
+      message: string;
+    }, {
+      dsaId: string;
+      action: 'approve' | 'reject';
+      adminNotes?: string;
+    }>({
+      query: (data) => ({
+        url: 'admin/dsa-reactivation',
+        method: 'POST',
+        body: data,
+      }),
+      invalidatesTags: ['Users'],
+    }),
+
+    submitDSAReactivationRequest: builder.mutation<{
+      success: boolean;
+      message: string;
+    }, {
+      reason: string;
+      clarification: string;
+    }>({
+      query: (data) => ({
+        url: 'dsa/reactivation-request',
+        method: 'POST',
+        body: data,
+      }),
+      invalidatesTags: ['Users'],
+    }),
+
+    getDSAReactivationRequest: builder.query<{
+      success: boolean;
+      reactivationRequest: {
+        reason: string;
+        clarification: string;
+        requestedAt: string;
+        status: 'pending' | 'approved' | 'rejected';
+        reviewedAt?: string;
+        adminNotes?: string;
+      } | null;
+    }, void>({
+      query: () => 'dsa/reactivation-request',
+      providesTags: ['Users'],
+    }),
   }),
 });
 
@@ -1003,4 +1115,8 @@ export const {
   useUpdateSettingsMutation,
   useResetSettingsMutation,
   useBackupSettingsMutation,
+  useGetDSAReactivationRequestsQuery,
+  useProcessDSAReactivationMutation,
+  useSubmitDSAReactivationRequestMutation,
+  useGetDSAReactivationRequestQuery,
 } = apiSlice;

@@ -61,10 +61,9 @@ export async function GET(request: NextRequest) {
     // Filter based on user role
     if (session.user.role === 'user') {
       query.userId = session.user.id;
-    } else if (session.user.role === 'dsa') {
-      query.assignedDSAs = { $in: [session.user.id] };
     }
-    // Admin can see all applications (no additional filter)
+    // DSAs and Admins can see all applications (no filter for queue-based system)
+    // DSAs will review applications based on their own choice and deadlines
 
     // Apply status filter
     if (status && status !== 'all') {
@@ -78,15 +77,52 @@ export async function GET(request: NextRequest) {
 
     const applications = await LoanApplication.find(query)
       .populate('userId', 'firstName lastName email phone')
-      .populate('assignedDSAs', 'firstName lastName email bank dsaId')
+      .populate('assignedDSAs', 'firstName lastName email bankName dsaId')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
 
     const total = await LoanApplication.countDocuments(query);
 
+    // Transform data to match frontend expectations
+    const transformedApplications = applications.map(app => {
+      const transformed = app.toObject();
+
+      // Map database fields to frontend expected fields
+      if (transformed.personalDetails) {
+        transformed.personalInfo = {
+          firstName: transformed.personalDetails.fullName?.split(' ')[0] || '',
+          lastName: transformed.personalDetails.fullName?.split(' ').slice(1).join(' ') || '',
+          email: transformed.userId?.email || '',
+          phone: transformed.userId?.phone || '',
+          dateOfBirth: transformed.personalDetails.dateOfBirth,
+          address: transformed.personalDetails.address
+        };
+      }
+
+      if (transformed.loanDetails) {
+        transformed.loanInfo = {
+          amount: transformed.loanDetails.amount,
+          purpose: transformed.loanDetails.purpose,
+          tenure: transformed.loanDetails.tenure
+        };
+      }
+
+      // Add application ID for compatibility
+      if (transformed.applicationNumber) {
+        transformed.applicationId = transformed.applicationNumber;
+      }
+
+      // Ensure status mapping
+      if (!transformed.priority) {
+        transformed.priority = 'medium';
+      }
+
+      return transformed;
+    });
+
     return NextResponse.json({
-      applications,
+      applications: transformedApplications,
       pagination: {
         page,
         limit,

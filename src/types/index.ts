@@ -18,6 +18,20 @@ export interface User {
   lastLogin?: Date;
   createdAt: Date;
   updatedAt: Date;
+
+  // DSA-specific fields
+  deadlineCompliance?: number; // Percentage of deadlines met
+  missedDeadlines?: number; // Number of missed deadlines today
+  statistics?: {
+    totalApplications?: number;
+    approvedApplications?: number;
+    rejectedApplications?: number;
+    successRate?: number;
+    totalLoanAmount?: number;
+    averageProcessingTime?: number;
+  };
+  rating?: number;
+  branchCode?: string;
 }
 
 // Loan Application Types
@@ -82,19 +96,59 @@ export interface DSAReview {
 
 export interface LoanApplication {
   _id: string;
+  applicationId?: string; // For frontend compatibility
   userId: string;
   dsaId?: string; // Primary DSA (backward compatibility)
   assignedDSAs: string[]; // Multiple DSAs can review
   applicationNumber: string;
-  personalDetails: PersonalDetails;
-  loanDetails: LoanDetails;
+  personalDetails?: PersonalDetails;
+  loanDetails?: LoanDetails;
+
+  // Frontend API compatibility fields
+  personalInfo?: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+    dateOfBirth: string;
+    aadharNumber?: string;
+    panNumber?: string;
+    address?: {
+      street: string;
+      city: string;
+      state: string;
+      pincode: string;
+    };
+  };
+  educationInfo?: {
+    instituteName: string;
+    course: string;
+    duration: string;
+    admissionDate: string;
+    feeStructure: number;
+  };
+  loanInfo?: {
+    amount: number;
+    purpose: string;
+    tenure?: number;
+  };
+  financialInfo?: {
+    annualIncome: number;
+    employmentType: string;
+    employerName: string;
+    workExperience: string;
+  };
+
   documents: Document[];
-  status: 'pending' | 'under_review' | 'approved' | 'rejected' | 'partially_approved';
+  status: 'pending' | 'under_review' | 'approved' | 'rejected' | 'partially_approved' | 'pending_review';
+  priority?: string;
   dsaReviews: DSAReview[];
   assignedAt?: Date;
   reviewDeadline?: Date;
   statusHistory: StatusHistory[];
   finalApprovalThreshold: number;
+  paymentStatus?: string;
+  serviceChargesPaid?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }

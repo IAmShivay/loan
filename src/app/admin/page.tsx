@@ -47,7 +47,7 @@ export default function AdminDashboard() {
   // Safe data with fallbacks
   const stats = safeStatistics(statsData?.statistics);
   const applications = applicationsData?.applications?.map(safeApplication) || [];
-  const users = usersData?.users?.map(safeUser) || [];
+  const users = usersData?.data?.users?.map(safeUser) || [];
 
   // Redirect if not admin
   if (status === 'loading') return <div>Loading...</div>;

@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Search, Filter, UserPlus, MoreHorizontal, Eye, Edit, Trash2, Star, TrendingUp } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { useGetUsersQuery, useUpdateUserStatusMutation } from '@/store/api/apiSlice';
+import { useGetUsersQuery, useUpdateUserStatusMutation, useGetDSAReactivationRequestsQuery, useProcessDSAReactivationMutation } from '@/store/api/apiSlice';
 import { SkeletonCard } from '@/components/ui/loading/SkeletonCard';
 import { toast } from 'sonner';
 
@@ -23,6 +23,7 @@ export default function AdminDSAPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [sortBy, setSortBy] = useState('name');
+  const [showReactivationRequests, setShowReactivationRequests] = useState(false);
 
   // Fetch DSA users
   const {
@@ -39,6 +40,16 @@ export default function AdminDSAPage() {
   });
 
   const [updateUserStatus] = useUpdateUserStatusMutation();
+
+  // Fetch DSA reactivation requests
+  const {
+    data: reactivationData,
+    refetch: refetchReactivationRequests
+  } = useGetDSAReactivationRequestsQuery(undefined, {
+    skip: !session?.user || session.user.role !== 'admin'
+  });
+
+  const [processReactivation] = useProcessDSAReactivationMutation();
 
   // Conditional returns after all hooks
   if (status === 'loading') {
@@ -83,6 +94,21 @@ export default function AdminDSAPage() {
     router.push('/admin/dsa/add');
   };
 
+  const handleProcessReactivation = async (dsaId: string, action: 'approve' | 'reject', adminNotes?: string) => {
+    try {
+      await processReactivation({
+        dsaId,
+        action,
+        adminNotes
+      }).unwrap();
+      toast.success(`Reactivation request ${action === 'approve' ? 'approved' : 'rejected'} successfully`);
+      refetchReactivationRequests();
+      refetchDSAs();
+    } catch (error) {
+      toast.error(`Failed to ${action} reactivation request`);
+    }
+  };
+
   if (dsaLoading) {
     return (
       <DashboardLayout>
@@ -95,7 +121,7 @@ export default function AdminDSAPage() {
     );
   }
 
-  const dsaList = dsaData?.users || [];
+  const dsaList = dsaData?.data?.users || [];
   const filteredDSAs = dsaList.filter(dsa => {
     const matchesSearch = searchTerm === '' ||
       dsa.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -137,15 +163,28 @@ export default function AdminDSAPage() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-slate-900">DSA Management</h1>
-            <p className="text-slate-600">Manage Direct Sales Agents and their performance</p>
+            <p className="text-slate-600">Manage DSAs, monitor performance, and track deadline compliance</p>
           </div>
-          <Button
-            className="bg-blue-600 hover:bg-blue-700"
-            onClick={handleAddDSA}
-          >
-            <UserPlus className="h-4 w-4 mr-2" />
-            Add DSA
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant={showReactivationRequests ? "outline" : "default"}
+              onClick={() => setShowReactivationRequests(!showReactivationRequests)}
+            >
+              {showReactivationRequests ? 'Show DSAs' : 'Reactivation Requests'}
+              {(reactivationData?.requests?.length || 0) > 0 && !showReactivationRequests && (
+                <Badge className="ml-2 bg-red-500 text-white">
+                  {reactivationData?.requests?.length || 0}
+                </Badge>
+              )}
+            </Button>
+            <Button
+              className="bg-blue-600 hover:bg-blue-700"
+              onClick={handleAddDSA}
+            >
+              <UserPlus className="h-4 w-4 mr-2" />
+              Add DSA
+            </Button>
+          </div>
         </div>
 
         {/* Stats Cards */}
@@ -200,9 +239,12 @@ export default function AdminDSAPage() {
             <CardContent className="p-4 sm:p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-slate-600">Total Loan Amount</p>
+                  <p className="text-sm font-medium text-slate-600">Deadline Compliance</p>
                   <p className="text-2xl font-bold text-slate-900">
-                    ₹{(filteredDSAs.reduce((sum, dsa) => sum + (dsa.statistics?.totalLoanAmount || 0), 0) / 10000000).toFixed(1)}Cr
+                    {dsaList.length > 0
+                      ? (filteredDSAs.reduce((sum, dsa) => sum + (dsa.deadlineCompliance || 100), 0) / filteredDSAs.length).toFixed(1)
+                      : '100'
+                    }%
                   </p>
                 </div>
                 <div className="p-2 bg-orange-50 rounded-lg">
@@ -212,6 +254,87 @@ export default function AdminDSAPage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Reactivation Requests Section */}
+        {showReactivationRequests && (
+          <Card className="bg-white border border-slate-200">
+            <CardHeader className="border-b border-slate-100">
+              <CardTitle>DSA Reactivation Requests ({reactivationData?.requests?.length || 0})</CardTitle>
+              <CardDescription>Review and process DSA account reactivation requests</CardDescription>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                {reactivationData?.requests?.length === 0 ? (
+                  <div className="p-8 text-center text-slate-500">
+                    <p>No pending reactivation requests</p>
+                  </div>
+                ) : (
+                  <table className="w-full">
+                    <thead className="bg-slate-50">
+                      <tr>
+                        <th className="text-left p-4 font-medium text-slate-700">DSA Details</th>
+                        <th className="text-left p-4 font-medium text-slate-700">Reason</th>
+                        <th className="text-left p-4 font-medium text-slate-700">Clarification</th>
+                        <th className="text-left p-4 font-medium text-slate-700">Requested</th>
+                        <th className="text-left p-4 font-medium text-slate-700">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {reactivationData?.requests?.map((request) => (
+                        <tr key={request._id} className="border-b border-slate-100 hover:bg-slate-50">
+                          <td className="p-4">
+                            <div>
+                              <div className="font-semibold text-slate-900">
+                                {request.firstName} {request.lastName}
+                              </div>
+                              <div className="text-sm text-slate-500">{request.email}</div>
+                              <div className="text-xs text-blue-600 mt-1">{request.dsaId}</div>
+                              <Badge className="mt-1 text-xs">{request.bankName}</Badge>
+                            </div>
+                          </td>
+                          <td className="p-4">
+                            <div className="text-sm text-slate-900 max-w-xs">
+                              {request.reactivationRequest.reason}
+                            </div>
+                          </td>
+                          <td className="p-4">
+                            <div className="text-sm text-slate-600 max-w-xs">
+                              {request.reactivationRequest.clarification}
+                            </div>
+                          </td>
+                          <td className="p-4">
+                            <div className="text-sm text-slate-500">
+                              {new Date(request.reactivationRequest.requestedAt).toLocaleDateString()}
+                            </div>
+                          </td>
+                          <td className="p-4">
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                className="bg-green-600 hover:bg-green-700"
+                                onClick={() => handleProcessReactivation(request._id, 'approve', 'Account reactivated after review')}
+                              >
+                                Approve
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-red-600 border-red-600 hover:bg-red-50"
+                                onClick={() => handleProcessReactivation(request._id, 'reject', 'Reactivation request rejected')}
+                              >
+                                Reject
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Filters */}
         <Card className="bg-white border border-slate-200">
@@ -277,8 +400,8 @@ export default function AdminDSAPage() {
                     <th className="text-left p-4 font-medium text-slate-700">DSA Details</th>
                     <th className="text-left p-4 font-medium text-slate-700">Bank</th>
                     <th className="text-left p-4 font-medium text-slate-700">Performance</th>
-                    <th className="text-left p-4 font-medium text-slate-700">Status</th>
-                    <th className="text-left p-4 font-medium text-slate-700">Rating</th>
+                    <th className="text-left p-4 font-medium text-slate-700">Deadline Compliance</th>
+                    <th className="text-left p-4 font-medium text-slate-700">Account Status</th>
                     <th className="text-left p-4 font-medium text-slate-700">Actions</th>
                   </tr>
                 </thead>
@@ -317,14 +440,37 @@ export default function AdminDSAPage() {
                         </div>
                       </td>
                       <td className="p-4">
-                        <Badge className={getStatusColor(dsa.isActive)}>
-                          {dsa.isActive ? 'Active' : 'Inactive'}
-                        </Badge>
+                        <div>
+                          <div className="text-sm font-medium text-slate-900">
+                            {dsa.deadlineCompliance || 100}% compliance
+                          </div>
+                          <div className="text-xs text-slate-500">
+                            {dsa.missedDeadlines || 0} missed today
+                          </div>
+                          {(dsa.missedDeadlines || 0) >= 3 && (
+                            <div className="text-xs text-red-600 font-medium">
+                              Account freezing triggered
+                            </div>
+                          )}
+                        </div>
                       </td>
                       <td className="p-4">
-                        <div className="flex items-center gap-1">
-                          <Star className="h-4 w-4 text-yellow-400 fill-current" />
-                          <span className="font-medium text-slate-900">{dsa.rating || 'N/A'}</span>
+                        <div>
+                          <Badge className={
+                            (dsa.missedDeadlines || 0) >= 3
+                              ? 'bg-red-100 text-red-800'
+                              : getStatusColor(dsa.isActive)
+                          }>
+                            {(dsa.missedDeadlines || 0) >= 3
+                              ? 'Frozen'
+                              : dsa.isActive ? 'Active' : 'Inactive'
+                            }
+                          </Badge>
+                          {(dsa.missedDeadlines || 0) >= 3 && (
+                            <div className="text-xs text-red-600 mt-1">
+                              3+ deadlines missed
+                            </div>
+                          )}
                         </div>
                       </td>
                       <td className="p-4">
@@ -344,11 +490,18 @@ export default function AdminDSAPage() {
                               Edit DSA
                             </DropdownMenuItem>
                             <DropdownMenuItem
-                              className="text-red-600"
+                              className={
+                                (dsa.missedDeadlines || 0) >= 3
+                                  ? "text-green-600"
+                                  : "text-red-600"
+                              }
                               onClick={() => handleStatusUpdate(dsa._id, !dsa.isActive)}
                             >
                               <Trash2 className="h-4 w-4 mr-2" />
-                              Suspend DSA
+                              {(dsa.missedDeadlines || 0) >= 3
+                                ? 'Unfreeze Account'
+                                : 'Freeze Account'
+                              }
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>

@@ -2,9 +2,23 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth/config';
 import { connectDB } from '@/lib/db/connection';
-import { uploadToCloudinary, DOCUMENT_CONFIGS } from '@/lib/cloudinary';
+import { uploadToMinio } from '@/lib/minio';
 import FileUpload from '@/lib/db/models/FileUpload';
 import { logApiRequest, logApiResponse, logError, logFileOperation, logInfo } from '@/lib/logger';
+
+// Document configuration for validation
+const DOCUMENT_CONFIGS = {
+  maxSize: 10 * 1024 * 1024, // 10MB
+  allowedTypes: [
+    'application/pdf',
+    'image/jpeg',
+    'image/jpg',
+    'image/png',
+    'image/webp',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+  ]
+};
 
 export async function POST(request: NextRequest) {
   const startTime = Date.now();
@@ -70,43 +84,33 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Document type is required' }, { status: 400 });
     }
 
-    // Get document configuration
-    const config = DOCUMENT_CONFIGS[documentType as keyof typeof DOCUMENT_CONFIGS];
-    if (!config) {
-      const duration = Date.now() - startTime;
-      logError('Invalid document type provided', null, { documentType, userId: session.user.id });
-      logApiResponse(method, url, 400, duration, session.user.id);
-      return NextResponse.json({ error: 'Invalid document type' }, { status: 400 });
-    }
-
     // Validate file size
-    if (file.size > config.max_file_size) {
+    if (file.size > DOCUMENT_CONFIGS.maxSize) {
       const duration = Date.now() - startTime;
       logError('File size exceeds limit', null, {
         fileSize: file.size,
-        maxSize: config.max_file_size,
+        maxSize: DOCUMENT_CONFIGS.maxSize,
         fileName: file.name,
         userId: session.user.id
       });
       logApiResponse(method, url, 400, duration, session.user.id);
       return NextResponse.json({
-        error: `File size exceeds limit of ${config.max_file_size / (1024 * 1024)}MB`
+        error: `File size exceeds limit of ${DOCUMENT_CONFIGS.maxSize / (1024 * 1024)}MB`
       }, { status: 400 });
     }
 
-    // Validate file format
-    const fileExtension = file.name.split('.').pop()?.toLowerCase();
-    if (!fileExtension || !config.allowed_formats.includes(fileExtension)) {
+    // Validate file type
+    if (!DOCUMENT_CONFIGS.allowedTypes.includes(file.type)) {
       const duration = Date.now() - startTime;
-      logError('Invalid file format', null, {
+      logError('Invalid file type', null, {
         fileName: file.name,
-        fileExtension,
-        allowedFormats: config.allowed_formats,
+        fileType: file.type,
+        allowedTypes: DOCUMENT_CONFIGS.allowedTypes,
         userId: session.user.id
       });
       logApiResponse(method, url, 400, duration, session.user.id);
       return NextResponse.json({
-        error: `Invalid file format. Allowed formats: ${config.allowed_formats.join(', ')}`
+        error: `Invalid file type. Allowed types: ${DOCUMENT_CONFIGS.allowedTypes.join(', ')}`
       }, { status: 400 });
     }
 
@@ -114,32 +118,37 @@ export async function POST(request: NextRequest) {
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    // Upload to Cloudinary
-    const uploadResult = await uploadToCloudinary(buffer, {
-      folder: config.folder,
-      allowed_formats: config.allowed_formats,
-      max_file_size: config.max_file_size,
-      transformation: ((config as Record<string, unknown>).transformation as unknown[]) || [],
+    // Upload to MinIO
+    const uploadResult = await uploadToMinio({
+      fileName: file.name,
+      fileBuffer: buffer,
+      contentType: file.type,
+      metadata: {
+        documentType,
+        applicationId: applicationId || '',
+        uploadedBy: session.user.id,
+        originalName: file.name
+      }
     });
 
     logFileOperation('upload', file.name, true, file.size, {
       documentType,
       applicationId,
-      cloudinaryPublicId: uploadResult.public_id,
+      minioFileName: uploadResult.fileName,
       userId: session.user.id
     });
 
     // Save file record to database
     const fileRecord = new FileUpload({
       originalName: file.name,
-      fileName: uploadResult.public_id,
-      fileUrl: uploadResult.secure_url,
-      fileType: uploadResult.format,
-      fileSize: uploadResult.bytes,
+      fileName: uploadResult.fileName,
+      fileUrl: uploadResult.fileUrl,
+      fileType: file.type,
+      fileSize: file.size,
+      mimeType: file.type,
       uploadedBy: session.user.id,
       documentType,
       applicationId: applicationId || undefined,
-      cloudinaryPublicId: uploadResult.public_id,
     });
 
     await fileRecord.save();

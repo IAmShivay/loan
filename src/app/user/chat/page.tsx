@@ -151,12 +151,24 @@ function ChatPageContent() {
 
   return (
     <DashboardLayout>
-      <div className="h-[calc(100vh-4rem)] flex">
+      <div className="h-[calc(80vh-2rem)] flex bg-white border border-gray-200 rounded-lg overflow-hidden">
         {/* Chat List Sidebar */}
-        <div className="w-80 border-r bg-white flex flex-col">
+        <div className={`${selectedChat ? 'hidden lg:flex' : 'flex'} w-full lg:w-80 border-r bg-white flex-col`}>
           {/* Header */}
-          <div className="p-4 border-b">
-            <h1 className="text-xl font-semibold text-gray-900">Messages</h1>
+          <div className="p-3 border-b flex-shrink-0">
+            <div className="flex items-center justify-between mb-2">
+              <h1 className="text-xl font-semibold text-gray-900">Messages</h1>
+              {selectedChat && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="lg:hidden"
+                  onClick={() => setSelectedChat(null)}
+                >
+                  Back
+                </Button>
+              )}
+            </div>
             <p className="text-sm text-gray-600">Chat with your assigned DSAs</p>
           </div>
 
@@ -237,7 +249,18 @@ function ChatPageContent() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between">
                           <p className="text-sm font-medium text-gray-900 truncate">
-                            Application #{chat.applicationId?.slice(-6)}
+                            Application #{(() => {
+                              if (typeof chat.applicationId === 'string') {
+                                return chat.applicationId.slice(-6);
+                              }
+                              if (chat.applicationId && typeof chat.applicationId === 'object' && chat.applicationId._id) {
+                                return chat.applicationId._id.slice(-6);
+                              }
+                              if (chat.applicationId && chat.applicationId.toString && chat.applicationId.toString() !== '[object Object]') {
+                                return chat.applicationId.toString().slice(-6);
+                              }
+                              return 'N/A';
+                            })()}
                           </p>
                           {chat.lastMessage && (
                             <p className="text-xs text-gray-500">
@@ -272,12 +295,13 @@ function ChatPageContent() {
         </div>
 
         {/* Chat Window */}
-        <div className="flex-1 flex flex-col">
+        <div className={`${selectedChat ? 'flex' : 'hidden lg:flex'} flex-1 flex-col`}>
           {selectedChat && selectedChatData ? (
             <ChatWindow
               chatId={selectedChat}
               applicationId={selectedChatData.applicationId}
               participants={selectedChatData.participants}
+              onClose={() => setSelectedChat(null)}
             />
           ) : (
             <div className="flex-1 flex items-center justify-center bg-gray-50">

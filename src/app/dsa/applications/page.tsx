@@ -145,12 +145,20 @@ export default function DSAApplicationsPage() {
     }
   };
 
-  const getDaysLeft = (deadline: string) => {
+  const getDaysLeft = (createdAt: string, deadlineHours: number = 24) => {
     const now = new Date();
-    const deadlineDate = new Date(deadline);
+    const createdDate = new Date(createdAt);
+    const deadlineDate = new Date(createdDate.getTime() + (deadlineHours * 60 * 60 * 1000));
     const diffTime = deadlineDate.getTime() - now.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays;
+    const diffHours = Math.ceil(diffTime / (1000 * 60 * 60));
+    return { hours: diffHours, deadlineDate };
+  };
+
+  const getDeadlineStatus = (hours: number) => {
+    if (hours <= 0) return { status: 'expired', color: 'text-red-600', bgColor: 'bg-red-50' };
+    if (hours <= 2) return { status: 'critical', color: 'text-red-600', bgColor: 'bg-red-50' };
+    if (hours <= 6) return { status: 'urgent', color: 'text-orange-600', bgColor: 'bg-orange-50' };
+    return { status: 'normal', color: 'text-green-600', bgColor: 'bg-green-50' };
   };
 
   if (applicationsLoading) {
@@ -171,7 +179,7 @@ export default function DSAApplicationsPage() {
               Application Queue
             </h1>
             <p className="text-slate-600">
-              Review and process education loan applications assigned to you
+              Review and process all pending loan applications - multiple DSAs can review each application
             </p>
           </div>
           <div className="flex gap-2">
@@ -302,14 +310,18 @@ export default function DSAApplicationsPage() {
         {/* Applications List */}
         <div className="grid grid-cols-1 gap-4 lg:gap-6">
           {applications.map((app) => {
-            const daysLeft = getDaysLeft(app.createdAt);
-            const isUrgent = daysLeft <= 1;
+            const { hours: hoursLeft, deadlineDate } = getDaysLeft(app.createdAt);
+            const deadlineStatus = getDeadlineStatus(hoursLeft);
+            const isExpired = hoursLeft <= 0;
 
             return (
               <Card
                 key={app._id}
-                className={`bg-white border transition-all hover:shadow-md ${
-                  isUrgent ? "border-red-200 bg-red-50/30" : "border-slate-200"
+                className={`border transition-all hover:shadow-md ${
+                  isExpired ? "border-red-300 bg-red-50" :
+                  deadlineStatus.status === 'critical' ? "border-red-200 bg-red-25" :
+                  deadlineStatus.status === 'urgent' ? "border-orange-200 bg-orange-25" :
+                  "border-slate-200 bg-white"
                 }`}
               >
                 <CardContent className="p-4 sm:p-6">
@@ -324,15 +336,35 @@ export default function DSAApplicationsPage() {
                             <Badge className="bg-blue-100 text-blue-800">
                               Education Loan
                             </Badge>
-                            {isUrgent && (
+                            {isExpired ? (
+                              <Badge className="bg-red-600 text-white">
+                                DEADLINE MISSED
+                              </Badge>
+                            ) : deadlineStatus.status === 'critical' ? (
                               <Badge className="bg-red-100 text-red-800">
-                                Urgent
+                                {hoursLeft}h LEFT
+                              </Badge>
+                            ) : deadlineStatus.status === 'urgent' ? (
+                              <Badge className="bg-orange-100 text-orange-800">
+                                {hoursLeft}h LEFT
+                              </Badge>
+                            ) : (
+                              <Badge className="bg-green-100 text-green-800">
+                                {hoursLeft}h LEFT
                               </Badge>
                             )}
                           </div>
-                          <p className="text-sm text-slate-500">
-                            Submitted {safeDate(app.createdAt)}
-                          </p>
+                          <div className="space-y-1">
+                            <p className="text-sm text-slate-500">
+                              Submitted {safeDate(app.createdAt)}
+                            </p>
+                            <p className={`text-xs font-medium ${deadlineStatus.color}`}>
+                              {isExpired
+                                ? `Deadline passed ${Math.abs(hoursLeft)} hours ago`
+                                : `Review deadline: ${deadlineDate.toLocaleString()}`
+                              }
+                            </p>
+                          </div>
                         </div>
                         <div className="flex items-center gap-2">
                           {getStatusIcon(app.status)}
@@ -407,12 +439,16 @@ export default function DSAApplicationsPage() {
 
                     <div className="flex flex-col sm:flex-row gap-2">
                       <Link href={`/dsa/applications/${app._id}`}>
-                        <Button variant="outline" className="w-full sm:w-auto">
+                        <Button
+                          variant="outline"
+                          className="w-full sm:w-auto"
+                          disabled={isExpired}
+                        >
                           <Eye className="h-4 w-4 mr-2" />
                           Review
                         </Button>
                       </Link>
-                      {app.status === "pending_review" && (
+                      {app.status === "pending_review" && !isExpired && (
                         <Button
                           onClick={() =>
                             router.push(`/dsa/applications/${app._id}`)
@@ -421,6 +457,16 @@ export default function DSAApplicationsPage() {
                         >
                           <Edit className="h-4 w-4 mr-2" />
                           Process
+                        </Button>
+                      )}
+                      {isExpired && (
+                        <Button
+                          variant="outline"
+                          className="w-full sm:w-auto text-red-600 border-red-200"
+                          disabled
+                        >
+                          <XCircle className="h-4 w-4 mr-2" />
+                          Deadline Missed
                         </Button>
                       )}
                     </div>

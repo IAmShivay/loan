@@ -44,6 +44,27 @@ export interface IUser extends Document {
     uploadedAt: Date;
   }>;
 
+  // DSA reactivation request
+  reactivationRequest?: {
+    reason: string;
+    clarification: string;
+    requestedAt: Date;
+    status: 'pending' | 'approved' | 'rejected';
+    reviewedBy?: mongoose.Types.ObjectId;
+    reviewedAt?: Date;
+    adminNotes?: string;
+  };
+
+  // DSA statistics
+  missedDeadlines?: number;
+  deadlineCompliance?: number;
+  statistics?: {
+    totalApplications: number;
+    approvedApplications: number;
+    successRate: number;
+    totalLoanAmount: number;
+  };
+
   createdAt: Date;
   updatedAt: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
@@ -181,6 +202,75 @@ const UserSchema = new Schema<IUser>({
       default: Date.now
     }
   }],
+
+  // DSA reactivation request
+  reactivationRequest: {
+    reason: {
+      type: String,
+      trim: true,
+      minlength: 10,
+      maxlength: 500,
+    },
+    clarification: {
+      type: String,
+      trim: true,
+      minlength: 20,
+      maxlength: 1000,
+    },
+    requestedAt: {
+      type: Date,
+      default: Date.now,
+    },
+    status: {
+      type: String,
+      enum: ['pending', 'approved', 'rejected'],
+      default: 'pending',
+    },
+    reviewedBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+    },
+    reviewedAt: {
+      type: Date,
+    },
+    adminNotes: {
+      type: String,
+      trim: true,
+      maxlength: 500,
+    },
+  },
+
+  // DSA statistics
+  missedDeadlines: {
+    type: Number,
+    default: 0,
+  },
+  deadlineCompliance: {
+    type: Number,
+    default: 100,
+    min: 0,
+    max: 100,
+  },
+  statistics: {
+    totalApplications: {
+      type: Number,
+      default: 0,
+    },
+    approvedApplications: {
+      type: Number,
+      default: 0,
+    },
+    successRate: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 100,
+    },
+    totalLoanAmount: {
+      type: Number,
+      default: 0,
+    },
+  },
 }, {
   timestamps: true,
 });

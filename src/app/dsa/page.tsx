@@ -48,6 +48,12 @@ export default function DSADashboard() {
     return null;
   }
 
+  // Redirect to reactivation request page if account is frozen
+  if (session.user.isActive === false) {
+    router.push('/dsa/reactivation-request');
+    return null;
+  }
+
   return (
     <DashboardLayout>
       <div className="space-y-6 p-4 sm:p-6 lg:p-8">

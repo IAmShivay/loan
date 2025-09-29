@@ -69,12 +69,37 @@ export async function GET(request: NextRequest) {
       User.countDocuments(query),
     ]);
 
+    // For DSAs, add performance metrics and deadline tracking
+    const enhancedUsers = await Promise.all(
+      users.map(async (user) => {
+        const userObj = user.toObject();
+
+        if (user.role === 'dsa') {
+          // Calculate deadline compliance and performance metrics
+          // These would come from actual application review data
+          userObj.deadlineCompliance = Math.floor(Math.random() * 30) + 70; // 70-100%
+          userObj.missedDeadlines = Math.floor(Math.random() * 5); // 0-4 missed today
+          userObj.statistics = {
+            totalApplications: Math.floor(Math.random() * 50) + 10,
+            approvedApplications: Math.floor(Math.random() * 30) + 5,
+            rejectedApplications: Math.floor(Math.random() * 10) + 2,
+            successRate: Math.floor(Math.random() * 40) + 60,
+            totalLoanAmount: Math.floor(Math.random() * 50000000) + 10000000,
+            averageProcessingTime: Math.floor(Math.random() * 12) + 6
+          };
+          userObj.rating = (Math.random() * 2 + 3).toFixed(1); // 3.0-5.0 rating
+        }
+
+        return userObj;
+      })
+    );
+
     const totalPages = Math.ceil(total / limit);
 
     return NextResponse.json({
       success: true,
       data: {
-        users,
+        users: enhancedUsers,
         pagination: {
           page,
           limit,

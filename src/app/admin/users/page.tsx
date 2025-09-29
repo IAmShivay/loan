@@ -1,5 +1,8 @@
-import { getAuthSession } from '@/lib/auth/utils';
-import { redirect } from 'next/navigation';
+'use client';
+
+import { useState } from 'react';
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import { DashboardLayout } from '@/components/layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,50 +11,61 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Search, Filter, UserPlus, MoreHorizontal, Eye, Edit, Trash2 } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import Link from 'next/link';
+import { useGetUsersQuery } from '@/store/api/apiSlice';
+import { SkeletonCard } from '@/components/ui/loading/SkeletonCard';
+import { toast } from 'sonner';
 
-export default async function AdminUsersPage() {
-  const session = await getAuthSession();
+export default function AdminUsersPage() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [searchTerm, setSearchTerm] = useState('');
   
-  if (!session?.user || session.user.role !== 'admin') {
-    redirect('/login');
+  // Fetch non-DSA users via API
+  const {
+    data: usersData,
+    isLoading: usersLoading,
+    error: usersError,
+    refetch: refetchUsers
+  } = useGetUsersQuery({
+    role: statusFilter === 'all' ? undefined : statusFilter,
+    limit: 50,
+    page: 1
+  }, {
+    skip: !session?.user || session.user.role !== 'admin'
+  });
+
+  // Conditional returns after all hooks
+  if (status === 'loading') {
+    return (
+      <DashboardLayout>
+        <div className="space-y-6 lg:space-y-8">
+          <SkeletonCard />
+          <SkeletonCard />
+          <SkeletonCard />
+        </div>
+      </DashboardLayout>
+    );
   }
 
-  // TODO: Replace with actual API call
-  const users = [
-    {
-      id: '1',
-      name: 'John Doe',
-      email: 'john@example.com',
-      role: 'user',
-      status: 'active',
-      createdAt: '2024-01-15',
-      lastLogin: '2024-12-10',
-      applications: 3
-    },
-    {
-      id: '2',
-      name: 'Jane Smith',
-      email: 'jane@sbi.com',
-      role: 'dsa',
-      status: 'active',
-      createdAt: '2024-02-20',
-      lastLogin: '2024-12-11',
-      applications: 15,
-      bank: 'SBI',
-      dsaId: 'SBI238001EMB'
-    },
-    {
-      id: '3',
-      name: 'Mike Johnson',
-      email: 'mike@example.com',
-      role: 'user',
-      status: 'inactive',
-      createdAt: '2024-03-10',
-      lastLogin: '2024-11-25',
-      applications: 1
-    }
-  ];
+  if (!session?.user || session.user.role !== 'admin') {
+    router.push('/login');
+    return null;
+  }
+
+  if (usersLoading) {
+    return (
+      <DashboardLayout>
+        <div className="space-y-6 lg:space-y-8">
+          <SkeletonCard />
+          <SkeletonCard />
+          <SkeletonCard />
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  const users = usersData?.data?.users?.filter(user => user.role !== 'dsa') || [];
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -86,7 +100,7 @@ export default async function AdminUsersPage() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-slate-900">User Management</h1>
-            <p className="text-slate-600">Manage all users, DSAs, and administrators</p>
+            <p className="text-slate-600">Manage regular users and administrators (DSAs managed separately)</p>
           </div>
           <Button className="bg-blue-600 hover:bg-blue-700">
             <UserPlus className="h-4 w-4 mr-2" />
@@ -110,10 +124,9 @@ export default async function AdminUsersPage() {
                   <SelectValue placeholder="Role" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Roles</SelectItem>
-                  <SelectItem value="admin">Admin</SelectItem>
-                  <SelectItem value="dsa">DSA</SelectItem>
-                  <SelectItem value="user">User</SelectItem>
+                  <SelectItem value="all">All Users</SelectItem>
+                  <SelectItem value="user">Regular Users</SelectItem>
+                  <SelectItem value="admin">Administrators</SelectItem>
                 </SelectContent>
               </Select>
               <Select>
@@ -152,16 +165,11 @@ export default async function AdminUsersPage() {
                 </thead>
                 <tbody>
                   {users.map((user) => (
-                    <tr key={user.id} className="border-b border-slate-100 hover:bg-slate-50">
+                    <tr key={user._id} className="border-b border-slate-100 hover:bg-slate-50">
                       <td className="p-4">
                         <div>
-                          <div className="font-semibold text-slate-900">{user.name}</div>
+                          <div className="font-semibold text-slate-900">{user.firstName} {user.lastName}</div>
                           <div className="text-sm text-slate-500">{user.email}</div>
-                          {user.role === 'dsa' && (
-                            <div className="text-xs text-blue-600 mt-1">
-                              {user.bank} - {user.dsaId}
-                            </div>
-                          )}
                         </div>
                       </td>
                       <td className="p-4">
@@ -170,15 +178,17 @@ export default async function AdminUsersPage() {
                         </Badge>
                       </td>
                       <td className="p-4">
-                        <Badge className={getStatusColor(user.status)}>
-                          {user.status}
+                        <Badge className={getStatusColor(user.isActive ? 'active' : 'inactive')}>
+                          {user.isActive ? 'Active' : 'Inactive'}
                         </Badge>
                       </td>
                       <td className="p-4">
-                        <span className="font-medium">{user.applications}</span>
+                        <span className="font-medium">0</span>
                       </td>
                       <td className="p-4">
-                        <span className="text-sm text-slate-600">{user.lastLogin}</span>
+                        <span className="text-sm text-slate-600">
+                          {user.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : 'Never'}
+                        </span>
                       </td>
                       <td className="p-4">
                         <DropdownMenu>

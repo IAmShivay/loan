@@ -24,20 +24,10 @@ import { toast } from 'sonner';
 export default function AdminApplicationsPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-
-  if (status === 'loading') {
-    return <LoadingSpinner />;
-  }
-
-  if (!session?.user || session.user.role !== 'admin') {
-    router.push('/login');
-    return null;
-  }
-
   const [statusFilter, setStatusFilter] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
 
-  // RTK Query hooks
+  // RTK Query hooks - must be called before any conditional returns
   const {
     data: applicationsData,
     isLoading: applicationsLoading,
@@ -48,10 +38,24 @@ export default function AdminApplicationsPage() {
     search: searchTerm || undefined,
     limit: 50,
     page: 1
+  }, {
+    skip: !session?.user || session.user.role !== 'admin'
   });
 
-  const { data: statisticsData } = useGetStatisticsQuery('admin');
+  const { data: statisticsData } = useGetStatisticsQuery('admin', {
+    skip: !session?.user || session.user.role !== 'admin'
+  });
   const [updateApplicationStatus] = useUpdateApplicationStatusMutation();
+
+  // Conditional returns after all hooks
+  if (status === 'loading') {
+    return <LoadingSpinner />;
+  }
+
+  if (!session?.user || session.user.role !== 'admin') {
+    router.push('/login');
+    return null;
+  }
 
   const applications = applicationsData?.applications || [];
 
@@ -63,6 +67,17 @@ export default function AdminApplicationsPage() {
     } catch (error) {
       toast.error('Failed to update application status');
       console.error('Error updating application:', error);
+    }
+  };
+
+  const handleDownloadDocuments = async (applicationId: string) => {
+    try {
+      // For now, just show a message that download is being implemented
+      toast.info('Document download functionality is being implemented');
+      // TODO: Implement actual document download logic
+    } catch (error) {
+      toast.error('Failed to download documents');
+      console.error('Error downloading documents:', error);
     }
   };
 
@@ -291,15 +306,15 @@ export default function AdminApplicationsPage() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => router.push(`/admin/applications/${app._id}`)}>
                               <Eye className="h-4 w-4 mr-2" />
                               View Details
                             </DropdownMenuItem>
-                            <DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleStatusUpdate(app._id, 'under_review')}>
                               <Edit className="h-4 w-4 mr-2" />
                               Update Status
                             </DropdownMenuItem>
-                            <DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleDownloadDocuments(app._id)}>
                               <Download className="h-4 w-4 mr-2" />
                               Download Documents
                             </DropdownMenuItem>

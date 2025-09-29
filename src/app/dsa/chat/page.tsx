@@ -19,15 +19,51 @@ import {
   Users,
   FileText
 } from 'lucide-react';
-import { useGetApplicationsQuery } from '@/store/api/apiSlice';
+import { useGetApplicationsQuery, useCreateChatMutation, useGetChatsQuery } from '@/store/api/apiSlice';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
 import { safeString, safeDate, safeTimeAgo } from '@/lib/utils/fallbacks';
+import ChatWindow from '@/components/chat/ChatWindow';
+import { toast } from 'sonner';
 
 export default function DSAChatPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
+  const [activeChatId, setActiveChatId] = useState<string | null>(null);
+  const [showChatWindow, setShowChatWindow] = useState(false);
+
+  // Get all applications for DSA to see in chat
+  const {
+    data: applicationsData,
+    isLoading: applicationsLoading,
+    error: applicationsError
+  } = useGetApplicationsQuery({
+    limit: 50
+    // Removed status filter to show all applications initially
+  }, {
+    skip: !session?.user || session.user.role !== 'dsa'
+  });
+
+  // Debug logging in development only
+  if (process.env.NODE_ENV === 'development') {
+    console.log('DSA Chat Debug:', {
+      applicationsCount: applicationsData?.applications?.length || 0,
+      applicationsLoading,
+      hasError: !!applicationsError,
+      sessionRole: session?.user?.role
+    });
+  }
+
+  const [createChat] = useCreateChatMutation();
+
+  // Get existing chats for this DSA
+  const {
+    data: chatsData,
+    refetch: refetchChats
+  } = useGetChatsQuery({}, {
+    skip: !session?.user || session.user.role !== 'dsa'
+  });
 
   // Redirect if not authenticated or not DSA
   if (status === 'loading') {
@@ -39,15 +75,43 @@ export default function DSAChatPage() {
     return null;
   }
 
-  // Get applications assigned to this DSA that have user communication
-  const {
-    data: applicationsData,
-    isLoading: applicationsLoading,
-    error: applicationsError
-  } = useGetApplicationsQuery({
-    status: 'under_review,partially_approved,approved', // Applications where user can chat
-    limit: 50
-  });
+  const handleStartChat = async (conversation: any) => {
+    try {
+      // Validate required data
+      if (!conversation.userId) {
+        toast.error('Unable to start chat - user information missing');
+        return;
+      }
+
+      // Check if chat already exists
+      const existingChat = chatsData?.chats?.find((chat: any) =>
+        chat.applicationId === conversation.id
+      );
+
+      if (existingChat) {
+        setActiveChatId(existingChat._id);
+        setShowChatWindow(true);
+        setSelectedConversation(conversation.id);
+        return;
+      }
+
+      // Create new chat
+      const result = await createChat({
+        applicationId: conversation.id,
+        participants: [session.user.id, conversation.userId]
+      }).unwrap();
+
+      setActiveChatId(result.chat._id);
+      setShowChatWindow(true);
+      setSelectedConversation(conversation.id);
+      refetchChats();
+
+      toast.success('Chat started successfully');
+    } catch (error: any) {
+      console.error('Failed to start chat:', error);
+      toast.error(error?.data?.error || 'Failed to start chat');
+    }
+  };
 
   if (applicationsLoading) {
     return <LoadingSpinner />;
@@ -56,24 +120,27 @@ export default function DSAChatPage() {
   // Transform applications into conversations
   const conversations = (applicationsData?.applications || [])
     .filter((app: any) => {
-      // Only show applications where user has selected this DSA for communication
-      return app.dsaId === session.user.id ||
-             (app.dsaReviews && app.dsaReviews.some((review: any) =>
-               review.dsaId === session.user.id && review.status === 'approved'
-             ));
+      // Show all applications since DSAs can work on any application
+      // Only filter out applications that don't have user information
+      return app.userId && (app.userId._id || app.userId);
     })
-    .map((app: any) => ({
-      id: app._id,
-      applicantName: safeString(`${app.userId?.firstName || ''} ${app.userId?.lastName || ''}`.trim(), 'Unknown User'),
-      applicationId: safeString(app.applicationNumber, 'N/A'),
-      applicationStatus: safeString(app.status, 'pending'),
-      lastMessage: 'Click to start conversation', // TODO: Get from chat API
-      timestamp: safeDate(app.updatedAt),
-      unreadCount: 0, // TODO: Get from chat API
-      status: 'offline', // TODO: Get user online status
-      avatar: app.userId?.profilePicture || null,
-      loanAmount: app.loanDetails?.amount || 0
-    }));
+    .map((app: any) => {
+      const userId = app.userId?._id || app.userId;
+
+      return {
+        id: app._id,
+        applicantName: safeString(`${app.userId?.firstName || ''} ${app.userId?.lastName || ''}`.trim(), 'Unknown User'),
+        applicationId: safeString(app.applicationNumber, 'N/A'),
+        applicationStatus: safeString(app.status, 'pending'),
+        lastMessage: 'Start conversation with applicant',
+        timestamp: safeDate(app.updatedAt),
+        unreadCount: 0,
+        status: 'offline',
+        avatar: app.userId?.profilePicture || null,
+        loanAmount: app.loanDetails?.amount || 0,
+        userId: userId // Add user ID for chat creation
+      };
+    });
 
   // Filter conversations based on search
   const filteredConversations = conversations.filter((conv: any) =>
@@ -136,11 +203,27 @@ export default function DSAChatPage() {
 
   return (
     <DashboardLayout>
-      <div className="h-[calc(100vh-8rem)] flex bg-white border border-slate-200 rounded-lg overflow-hidden">
+      <div className="h-[calc(80vh-2rem)] flex bg-white border border-slate-200 rounded-lg overflow-hidden">
         {/* Conversations List */}
-        <div className="w-80 border-r border-slate-200 flex flex-col">
-          <div className="p-4 border-b border-slate-200">
-            <h2 className="text-lg font-semibold text-slate-900 mb-3">Messages</h2>
+        <div className={`${showChatWindow ? 'hidden lg:flex' : 'flex'} w-full lg:w-80 border-r border-slate-200 flex-col`}>
+          <div className="p-3 border-b border-slate-200 flex-shrink-0">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg font-semibold text-slate-900">Messages</h2>
+              {showChatWindow && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="lg:hidden"
+                  onClick={() => {
+                    setShowChatWindow(false);
+                    setActiveChatId(null);
+                    setSelectedConversation(null);
+                  }}
+                >
+                  Back
+                </Button>
+              )}
+            </div>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
               <Input
@@ -159,12 +242,21 @@ export default function DSAChatPage() {
                   <MessageCircle className="h-12 w-12 mx-auto mb-4 text-slate-300" />
                   <p className="text-sm">No conversations found</p>
                   <p className="text-xs mt-1">Applications with approved reviews will appear here</p>
+                  {process.env.NODE_ENV === 'development' && (
+                    <div className="mt-4 text-xs text-gray-400">
+                      <p>Debug: Total applications: {applicationsData?.applications?.length || 0}</p>
+                      <p>Debug: Session user ID: {session.user.id}</p>
+                    </div>
+                  )}
                 </div>
               ) : (
                 filteredConversations.map((conversation) => (
                   <div
                     key={conversation.id}
-                    onClick={() => setSelectedConversation(conversation.id)}
+                    onClick={() => {
+                      setSelectedConversation(conversation.id);
+                      handleStartChat(conversation);
+                    }}
                     className={`p-3 rounded-lg cursor-pointer transition-colors hover:bg-slate-50 ${
                       conversation.id === selectedConversation ? 'bg-blue-50 border border-blue-200' : ''
                     }`}
@@ -210,85 +302,48 @@ export default function DSAChatPage() {
         </div>
 
         {/* Chat Area */}
-        <div className="flex-1 flex flex-col">
-          {selectedConv ? (
-            <>
-              {/* Chat Header */}
-              <div className="p-4 border-b border-slate-200 bg-white">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="relative">
-                      <Avatar className="h-10 w-10">
-                        <AvatarImage src={selectedConv.avatar || undefined} />
-                        <AvatarFallback className="bg-blue-600 text-white">
-                          {getInitials(selectedConv.applicantName)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white ${getOnlineStatusColor(selectedConv.status)}`}></div>
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-slate-900">{selectedConv.applicantName}</h3>
-                      <p className="text-sm text-slate-500">
-                        {selectedConv.applicationId} •
-                        <Badge className={`ml-2 text-xs ${getStatusColor(selectedConv.applicationStatus)}`}>
-                          {selectedConv.applicationStatus.replace('_', ' ')}
-                        </Badge>
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="sm" title="View Application">
-                      <FileText className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="sm" title="More Options">
-                      <MoreVertical className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Messages */}
-              <ScrollArea className="flex-1 p-4">
-                <div className="flex items-center justify-center h-full">
-                  <div className="text-center text-slate-500">
-                    <MessageCircle className="h-16 w-16 mx-auto mb-4 text-slate-300" />
-                    <h3 className="text-lg font-medium mb-2">Start a conversation</h3>
-                    <p className="text-sm">Chat functionality will be available soon</p>
-                    <p className="text-xs mt-2">Application: {selectedConv.applicationId}</p>
-                    <p className="text-xs">Loan Amount: ₹{selectedConv.loanAmount?.toLocaleString('en-IN') || 'N/A'}</p>
-                  </div>
-                </div>
-              </ScrollArea>
-
-              {/* Message Input */}
-              <div className="p-4 border-t border-slate-200 bg-white">
-                <div className="flex items-center gap-2">
-                  <Button variant="ghost" size="sm" disabled>
-                    <Paperclip className="h-4 w-4" />
-                  </Button>
-                  <div className="flex-1 relative">
-                    <Input
-                      placeholder="Chat functionality coming soon..."
-                      className="pr-10"
-                      disabled
-                    />
-                    <Button variant="ghost" size="sm" className="absolute right-1 top-1/2 transform -translate-y-1/2" disabled>
-                      <Smile className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  <Button className="bg-blue-600 hover:bg-blue-700" disabled>
-                    <Send className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            </>
+        <div className={`${showChatWindow ? 'flex' : 'hidden lg:flex'} flex-1 flex-col`}>
+          {showChatWindow && activeChatId && selectedConv ? (
+            <div className="h-full w-full">
+              <ChatWindow
+                chatId={activeChatId}
+                applicationId={selectedConv.id}
+                participants={[
+                  {
+                    userId: session.user.id,
+                    name: session.user.name || `${session.user.firstName} ${session.user.lastName}`,
+                    role: 'dsa'
+                  },
+                  {
+                    userId: selectedConv.userId,
+                    name: selectedConv.applicantName,
+                    role: 'user'
+                  }
+                ]}
+                onClose={() => {
+                  setShowChatWindow(false);
+                  setActiveChatId(null);
+                  setSelectedConversation(null);
+                }}
+              />
+            </div>
           ) : (
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center text-slate-500">
                 <Users className="h-16 w-16 mx-auto mb-4 text-slate-300" />
                 <h3 className="text-lg font-medium mb-2">Select a conversation</h3>
                 <p className="text-sm">Choose an application from the list to start chatting</p>
-                <p className="text-xs mt-2">Only approved applications are available for chat</p>
+                <p className="text-xs mt-2">Click on any application to begin communication with the applicant</p>
+
+                {/* Debug info */}
+                {process.env.NODE_ENV === 'development' && (
+                  <div className="mt-4 text-xs text-gray-400">
+                    <p>Debug: showChatWindow={showChatWindow ? 'true' : 'false'}</p>
+                    <p>Debug: activeChatId={activeChatId || 'null'}</p>
+                    <p>Debug: selectedConv={selectedConv ? 'exists' : 'null'}</p>
+                    <p>Debug: conversationsCount={filteredConversations.length}</p>
+                  </div>
+                )}
               </div>
             </div>
           )}

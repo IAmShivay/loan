@@ -191,13 +191,13 @@ export default function Header({ onMenuClick, user }: HeaderProps) {
                   </div>
                 ) : (
                   <div className="max-h-80 overflow-y-auto">
-                    {notifications.map((notification) => {
+                    {notifications.map((notification, index) => {
                       const { icon: IconComponent, color } = getNotificationIcon(notification.type);
                       return (
                         <DropdownMenuItem
-                          key={notification._id}
+                          key={notification._id || `notification-${index}`}
                           className="p-0 cursor-pointer focus:bg-slate-50"
-                          onClick={() => !notification.read && handleMarkAsRead(notification._id)}
+                          onClick={() => !notification.read && notification._id && handleMarkAsRead(notification._id)}
                         >
                           <div className="flex items-start gap-3 w-full p-3 hover:bg-slate-50">
                             <div className={`p-1.5 rounded-full bg-opacity-20 ${color.replace('text-', 'bg-')}`}>

@@ -54,31 +54,24 @@ export async function GET(
       return NextResponse.json({ error: 'Application not found' }, { status: 404 });
     }
 
-    // Check authorization - users can only see their own applications, DSAs can see assigned applications, admins can see all
+    // Check authorization - users can only see their own applications, DSAs can see all applications (queue-based), admins can see all
     // Handle populated userId field - it could be an object or string
     const applicationUserId = typeof (application as any).userId === 'object'
       ? (application as any).userId._id.toString()
       : (application as any).userId.toString();
-    const applicationAssignedDSAs = (application as any).assignedDSAs || [];
 
     const isOwner = session.user.role === 'user' && applicationUserId === session.user.id;
-    const isAssignedDSA = session.user.role === 'dsa' && applicationAssignedDSAs.some((dsa: any) => {
-      const dsaId = typeof dsa === 'object' ? dsa._id.toString() : dsa.toString();
-      return dsaId === session?.user?.id;
-    });
+    const isDSA = session.user.role === 'dsa'; // DSAs can see all applications in queue-based system
     const isAdmin = session.user.role === 'admin';
 
-    const canAccess = isAdmin || isOwner || isAssignedDSA;
+    const canAccess = isAdmin || isOwner || isDSA;
 
     console.log('Application access check:', {
       userRole: session.user.role,
       userId: session.user.id,
       applicationUserId,
-      applicationAssignedDSAs: applicationAssignedDSAs.map((dsa: any) =>
-        typeof dsa === 'object' ? dsa._id.toString() : dsa.toString()
-      ),
       isOwner,
-      isAssignedDSA,
+      isDSA,
       isAdmin,
       canAccess
     });
@@ -99,9 +92,48 @@ export async function GET(
       isDeleted: false
     }).lean();
 
-    // Structure the response
+    // Transform data to match frontend expectations
+    const app = application as any; // Type assertion for flexibility
     const applicationDetails = {
       ...application,
+      // Add applicationId for compatibility
+      applicationId: app.applicationNumber,
+
+      // Map database fields to frontend expected fields
+      personalInfo: app.personalDetails ? {
+        firstName: app.personalDetails.fullName?.split(' ')[0] || '',
+        lastName: app.personalDetails.fullName?.split(' ').slice(1).join(' ') || '',
+        email: app.userId?.email || '',
+        phone: app.userId?.phone || '',
+        dateOfBirth: app.personalDetails.dateOfBirth,
+        address: app.personalDetails.address
+      } : undefined,
+
+      loanInfo: app.loanDetails ? {
+        amount: app.loanDetails.amount,
+        purpose: app.loanDetails.purpose,
+        tenure: app.loanDetails.tenure
+      } : undefined,
+
+      // Map education info if available
+      educationInfo: {
+        instituteName: 'Sample University', // This would come from application data
+        course: 'Computer Science',
+        duration: '4 years',
+        feeStructure: app.loanDetails?.amount || 0
+      },
+
+      // Financial info mapping
+      financialInfo: {
+        annualIncome: app.personalDetails?.income || 0,
+        employmentType: app.personalDetails?.employment?.type || '',
+        employerName: app.personalDetails?.employment?.companyName || '',
+        workExperience: app.personalDetails?.employment?.workExperience?.toString() || ''
+      },
+
+      // Ensure status and priority
+      priority: app.priority || 'medium',
+
       documents: documents.map(doc => ({
         _id: doc._id,
         originalName: doc.originalName,

@@ -56,14 +56,14 @@ const navigationItems: NavItem[] = [
     roles: ['admin'],
   },
   {
-    name: 'DSA Assignments',
-    href: '/admin/dsa-assignments',
-    icon: Users,
+    name: 'Loan Applications',
+    href: '/admin/applications',
+    icon: FileText,
     roles: ['admin'],
   },
   {
-    name: 'Loan Applications',
-    href: '/admin/applications',
+    name: 'Payments',
+    href: '/admin/payments',
     icon: FileText,
     roles: ['admin'],
   },
@@ -76,6 +76,12 @@ const navigationItems: NavItem[] = [
   {
     name: 'Analytics',
     href: '/admin/analytics',
+    icon: BarChart3,
+    roles: ['admin'],
+  },
+  {
+    name: 'Reports',
+    href: '/admin/reports',
     icon: BarChart3,
     roles: ['admin'],
   },

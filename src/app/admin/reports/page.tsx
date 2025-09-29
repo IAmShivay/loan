@@ -1,51 +1,82 @@
-import { getAuthSession } from '@/lib/auth/utils';
-import { redirect } from 'next/navigation';
+'use client';
+
+import { useState } from 'react';
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import { DashboardLayout } from '@/components/layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar, Download, TrendingUp, TrendingDown, BarChart3, PieChart } from 'lucide-react';
+import { useGetAnalyticsQuery } from '@/store/api/apiSlice';
+import { SkeletonCard } from '@/components/ui/loading/SkeletonCard';
+import { formatCurrency } from '@/lib/utils/fallbacks';
 
-export default async function AdminReportsPage() {
-  const session = await getAuthSession();
-  
-  if (!session?.user || session.user.role !== 'admin') {
-    redirect('/login');
+export default function AdminReportsPage() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
+  const [timeRange, setTimeRange] = useState('30d');
+
+  // Fetch analytics data for reports
+  const {
+    data: analyticsData,
+    isLoading: analyticsLoading,
+    error: analyticsError
+  } = useGetAnalyticsQuery({ timeRange }, {
+    skip: !session?.user || session.user.role !== 'admin'
+  });
+
+  // Conditional returns after all hooks
+  if (status === 'loading') {
+    return (
+      <DashboardLayout>
+        <div className="space-y-6 lg:space-y-8">
+          <SkeletonCard />
+          <SkeletonCard />
+          <SkeletonCard />
+        </div>
+      </DashboardLayout>
+    );
   }
 
-  // TODO: Replace with actual API calls
-  const reportData = {
-    totalApplications: 1247,
-    approvedApplications: 892,
-    rejectedApplications: 203,
-    pendingApplications: 152,
-    totalLoanAmount: 125000000,
-    averageLoanAmount: 750000,
-    topInstitutions: [
-      { name: 'IIT Delhi', applications: 45, amount: 33750000 },
-      { name: 'Stanford University', applications: 32, amount: 48000000 },
-      { name: 'Harvard University', applications: 28, amount: 42000000 },
-      { name: 'MIT', applications: 25, amount: 37500000 },
-      { name: 'Oxford University', applications: 22, amount: 33000000 }
-    ],
-    monthlyTrends: [
-      { month: 'Jan', applications: 89, amount: 6675000 },
-      { month: 'Feb', applications: 95, amount: 7125000 },
-      { month: 'Mar', applications: 102, amount: 7650000 },
-      { month: 'Apr', applications: 87, amount: 6525000 },
-      { month: 'May', applications: 110, amount: 8250000 },
-      { month: 'Jun', applications: 98, amount: 7350000 }
-    ],
-    dsaPerformance: [
-      { name: 'Jane Smith', bank: 'SBI', applications: 45, approved: 38, successRate: 84.4 },
-      { name: 'Mike Wilson', bank: 'HDFC', applications: 42, approved: 35, successRate: 83.3 },
-      { name: 'Sarah Davis', bank: 'ICICI', applications: 38, approved: 30, successRate: 78.9 },
-      { name: 'John Brown', bank: 'Axis', applications: 35, approved: 26, successRate: 74.3 }
-    ]
+  if (!session?.user || session.user.role !== 'admin') {
+    router.push('/login');
+    return null;
+  }
+
+  if (analyticsLoading) {
+    return (
+      <DashboardLayout>
+        <div className="space-y-6 lg:space-y-8">
+          <SkeletonCard />
+          <SkeletonCard />
+          <SkeletonCard />
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  const reportData = analyticsData?.analytics || {
+    overview: {
+      totalApplications: 0,
+      totalUsers: 0,
+      totalLoanAmount: 0,
+      approvalRate: 0,
+      avgLoanAmount: 0
+    },
+    trends: {
+      applicationTrends: [],
+      statusDistribution: [],
+      loanAmountDistribution: []
+    },
+    performance: {
+      dsaPerformance: [],
+      recentApplications: []
+    }
   };
 
-  const approvalRate = ((reportData.approvedApplications / reportData.totalApplications) * 100).toFixed(1);
-  const rejectionRate = ((reportData.rejectedApplications / reportData.totalApplications) * 100).toFixed(1);
+  const approvalRate = reportData.overview.approvalRate;
+  const rejectionRate = 100 - approvalRate;
 
   return (
     <DashboardLayout>
@@ -57,7 +88,7 @@ export default async function AdminReportsPage() {
             <p className="text-slate-600">Comprehensive insights into education loan performance</p>
           </div>
           <div className="flex gap-2">
-            <Select>
+            <Select value={timeRange} onValueChange={setTimeRange}>
               <SelectTrigger className="w-40">
                 <SelectValue placeholder="Time Period" />
               </SelectTrigger>
@@ -82,7 +113,7 @@ export default async function AdminReportsPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-slate-600">Total Applications</p>
-                  <p className="text-2xl font-bold text-slate-900">{reportData.totalApplications.toLocaleString()}</p>
+                  <p className="text-2xl font-bold text-slate-900">{reportData.overview.totalApplications.toLocaleString()}</p>
                   <div className="flex items-center mt-2">
                     <TrendingUp className="h-4 w-4 text-green-600 mr-1" />
                     <span className="text-sm text-green-600">+12.5% from last month</span>
@@ -118,7 +149,7 @@ export default async function AdminReportsPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-slate-600">Total Loan Amount</p>
-                  <p className="text-2xl font-bold text-slate-900">₹{(reportData.totalLoanAmount / 10000000).toFixed(1)}Cr</p>
+                  <p className="text-2xl font-bold text-slate-900">{formatCurrency(reportData.overview.totalLoanAmount)}</p>
                   <div className="flex items-center mt-2">
                     <TrendingUp className="h-4 w-4 text-green-600 mr-1" />
                     <span className="text-sm text-green-600">+18.7% from last month</span>
@@ -136,7 +167,7 @@ export default async function AdminReportsPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-slate-600">Average Loan</p>
-                  <p className="text-2xl font-bold text-slate-900">₹{(reportData.averageLoanAmount / 100000).toFixed(1)}L</p>
+                  <p className="text-2xl font-bold text-slate-900">{formatCurrency(reportData.overview.avgLoanAmount)}</p>
                   <div className="flex items-center mt-2">
                     <TrendingDown className="h-4 w-4 text-red-600 mr-1" />
                     <span className="text-sm text-red-600">-1.2% from last month</span>
@@ -160,7 +191,8 @@ export default async function AdminReportsPage() {
             </CardHeader>
             <CardContent className="p-4 sm:p-6">
               <div className="space-y-4">
-                {reportData.topInstitutions.map((institution, index) => (
+                {/* TODO: Add top institutions to API response */}
+                {(reportData as any).topInstitutions?.map((institution: any, index: number) => (
                   <div key={institution.name} className="flex items-center justify-between">
                     <div className="flex items-center space-x-3">
                       <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
@@ -188,7 +220,7 @@ export default async function AdminReportsPage() {
             </CardHeader>
             <CardContent className="p-4 sm:p-6">
               <div className="space-y-4">
-                {reportData.dsaPerformance.map((dsa, index) => (
+                {reportData.performance.dsaPerformance?.map((dsa: any, index: number) => (
                   <div key={dsa.name} className="flex items-center justify-between">
                     <div className="flex items-center space-x-3">
                       <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
@@ -219,19 +251,25 @@ export default async function AdminReportsPage() {
           <CardContent className="p-4 sm:p-6">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="text-center p-4 bg-green-50 rounded-lg">
-                <div className="text-2xl font-bold text-green-600">{reportData.approvedApplications}</div>
+                <div className="text-2xl font-bold text-green-600">
+                  {Math.round((reportData.overview.totalApplications * approvalRate) / 100)}
+                </div>
                 <div className="text-sm text-green-700">Approved ({approvalRate}%)</div>
               </div>
               <div className="text-center p-4 bg-red-50 rounded-lg">
-                <div className="text-2xl font-bold text-red-600">{reportData.rejectedApplications}</div>
-                <div className="text-sm text-red-700">Rejected ({rejectionRate}%)</div>
+                <div className="text-2xl font-bold text-red-600">
+                  {Math.round((reportData.overview.totalApplications * rejectionRate) / 100)}
+                </div>
+                <div className="text-sm text-red-700">Rejected ({rejectionRate.toFixed(1)}%)</div>
               </div>
               <div className="text-center p-4 bg-yellow-50 rounded-lg">
-                <div className="text-2xl font-bold text-yellow-600">{reportData.pendingApplications}</div>
+                <div className="text-2xl font-bold text-yellow-600">
+                  {reportData.overview.totalApplications - Math.round((reportData.overview.totalApplications * approvalRate) / 100) - Math.round((reportData.overview.totalApplications * rejectionRate) / 100)}
+                </div>
                 <div className="text-sm text-yellow-700">Pending Review</div>
               </div>
               <div className="text-center p-4 bg-blue-50 rounded-lg">
-                <div className="text-2xl font-bold text-blue-600">{reportData.totalApplications}</div>
+                <div className="text-2xl font-bold text-blue-600">{reportData.overview.totalApplications}</div>
                 <div className="text-sm text-blue-700">Total Applications</div>
               </div>
             </div>
